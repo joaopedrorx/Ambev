@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento de Produção - AB InBev Style</title>
+
+    <!-- Carregando Ícones -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-container">
+            <div class="header-brand">
+                <div class="brand-logo">
+                    AB
+                </div>
+                <div class="brand-text">
+                    <h1>Monitoramento de Produção</h1>
+                    <p>Linha 541</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <!-- Seletor de Produto -->
+                <div class="sku-selector">
+                    <label>SKU Ativo</label>
+                    <select id="skuSelect" class="sku-select">
+                        <option value="LN330">Longneck 330ml</option>
+                        <option value="LN275">Longneck 275ml</option>
+                    </select>
+                </div>
+
+                <!-- Theme Toggle Button -->
+                <button id="btnTheme" class="header-button" title="Alternar Modo Escuro/Claro" onclick="toggleTheme()">
+                    <i data-lucide="moon" id="themeIcon"></i>
+                </button>
+
+                <button id="btnSettings" class="header-button" title="Configurar Custos">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- ALERTS CONTAINER (Dinâmico) -->
+        <div id="alertsContainer" class="alerts-container">
+            <!-- Alertas serão injetados aqui -->
+        </div>
+
+        <!-- DASHBOARD VIEW -->
+        <div id="dashboardView" class="dashboard-view">
+
+            <!-- KPI ROW -->
+            <div class="kpi-grid">
+                <!-- KPI 1: Produção -->
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <div class="kpi-text">
+                            <p class="kpi-title">Produção Final</p>
+                            <h3 class="kpi-value" id="kpiProduction">0 un</h3>
+                            <p class="kpi-subtext kpi-production-subtext" id="kpiPallets">0 Paletes</p>
+                        </div>
+                        <div class="kpi-icon kpi-icon-production">
+                            <i data-lucide="package"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Eficiência -->
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <div class="kpi-text">
+                            <p class="kpi-title">Eficiência Global</p>
+                            <h3 class="kpi-value" id="kpiEfficiency">0%</h3>
+                            <p class="kpi-subtext kpi-efficiency-subtext">Eficiência da Linha</p>
+                        </div>
+                        <div class="kpi-icon kpi-icon-efficiency">
+                            <i data-lucide="activity"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 3: IPE (Líquido) -->
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <div class="kpi-text">
+                            <p class="kpi-title">IPE (Total)</p>
+                            <h3 class="kpi-value kpi-value-ipe" id="kpiIPE">0 hL</h3>
+                            <p class="kpi-subtext kpi-ipe-subtext" id="kpiIPEDetails">Processo + Envase</p>
+                        </div>
+                        <div class="kpi-icon kpi-icon-ipe">
+                            <i data-lucide="droplet"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 4: IPOW (Financeiro) -->
+                <div class="kpi-card" style="border-color: var(--color-red);">
+                    <div class="kpi-content">
+                        <div class="kpi-text">
+                            <p class="kpi-title">IPOW (Perda Total)</p>
+                            <h3 class="kpi-value kpi-value-ipow" id="kpiIPOW">$ 0.00</h3>
+                            <p class="kpi-subtext kpi-ipow-subtext">Mat. Prima + Líquido</p>
+                        </div>
+                        <div class="kpi-icon kpi-icon-ipow">
+                            <i data-lucide="trending-down"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAIN GRID -->
+            <div class="main-grid">
+
+                <!-- COLUNA 1: SIMULAÇÃO DA LINHA (INPUTS DETALHADOS) -->
+                <div class="input-column lg-col-span-1">
+                    <h2 class="input-column-header">
+                        <span class="input-column-title"><i data-lucide="sliders"></i> Dados de Entrada</span>
+                        <div class="input-column-actions">
+                            <button onclick="resetInputs()" class="sim-button">Limpar</button>
+                            <button id="btnDemo" onclick="applyDemo()" class="demo-button">DEMONSTRAÇÃO</button>
+                            <label class="manual-only-label">
+                                <input id="chkManualOnly" type="checkbox" onchange="toggleManualOnly(this.checked)" />
+                                <span>Somente Manuais</span>
+                            </label>
+                        </div>
+                    </h2>
+
+                    <div class="input-container custom-scrollbar">
+                        <div class="flow-line"></div> <!-- Linha vertical visual -->
+
+                        <!-- Container para o Input de Líquido -->
+                        <div id="liquidInputContainer" class="relative z-10 mb-6">
+                            <!-- Injetado via JS -->
+                        </div>
+
+                        <!-- Template Dinâmico via JS será injetado aqui -->
+                        <div id="stagesContainer" class="space-y-4 relative z-10 pb-4">
+                            <!-- Stages gerados via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COLUNA 2 e 3: ANÁLISE -->
+                <div class="analysis-column lg-col-span-2">
+
+                    <!-- Detalhamento de Perdas (Bar Chart Visual) -->
+                    <div class="loss-breakdown-card">
+                        <div class="loss-breakdown-header">
+                            <h2 class="loss-breakdown-title">Detalhamento IPOW (Perdas)</h2>
+                            <div class="loss-breakdown-total">
+                                <span class="total-label">Valor total perdido</span>
+                                <div class="total-value" id="chartTotalLoss">$ 0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- Container para o gráfico de barras -->
+                        <div id="lossBreakdown" class="custom-scrollbar">
+                            <!-- Barras geradas via JS -->
+                        </div>
+
+                        <div class="info-note">
+                            <div class="info-note-item">
+                                <i data-lucide="info"></i>
+                                <p><strong>Nota IPE (Líquido):</strong> O cálculo considera a diferença entre o medidor
+                                    de vazão da Cervejaria e o volume teórico envasado, somado ao líquido perdido nas
+                                    garrafas rejeitadas na linha.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cards de Informação -->
+                    <div class="info-cards-grid">
+                        <div class="sku-details-card">
+                            <h3>Constantes do SKU</h3>
+                            <ul id="skuDetails">
+                                <!-- Preenchido via JS -->
+                            </ul>
+                        </div>
+                        <div class="impact-card">
+                            <h3>Impacto Financeiro</h3>
+                            <p>Custo Total de Desperdício (IPOW)</p>
+                            <div id="operationalImpact">...</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS MODAL -->
+        <div id="settingsModal" class="modal-overlay hidden">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h2 class="modal-title">Configuração Unit Economics ($)</h2>
+                    <button id="btnCloseSettings" class="modal-close-button">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="modal-body custom-scrollbar" id="costInputsContainer">
+                    <!-- Inputs de custo gerados via JS -->
+                </div>
+                <div class="modal-footer">
+                    <button id="btnSaveSettings" class="save-settings-button">
+                        Aplicar Alterações
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <p>Sistema Desenvolvido para Demonstração</p>
+        <p>&copy; 2026 AB-InBev</p>
+    </footer>
+
+    <script src="js/script.js"></script>
+</body>
+
+</html>
