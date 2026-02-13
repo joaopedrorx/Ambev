@@ -3,7 +3,7 @@
 // --- 0. SERVIÇO DE PERSISTÊNCIA ---
 const StorageService = {
     KEY: 'ambev_sim_products_v5_budget', // Versão atualizada
-    
+
     // Base de dados inicial
     getDefaultProducts: () => ({
         'LATA350': {
@@ -22,9 +22,9 @@ const StorageService = {
                 shrink_film: 0.15,   // Filme Fardo
                 stretch_film: 8.50   // Filme Palete
             },
-            targets: { 
-                efficiency: 95.0, 
-                maxIPOWPct: 1.0, 
+            targets: {
+                efficiency: 95.0,
+                maxIPOWPct: 1.0,
                 maxIPEPct: 0.5,
                 budgetCostPerHl: 120.00 // Meta de Custo ($/hL)
             }
@@ -45,9 +45,9 @@ const StorageService = {
                 shrink_film: 0.00,   // Caixa (sem shrink)
                 stretch_film: 10.00
             },
-            targets: { 
-                efficiency: 90.0, 
-                maxIPOWPct: 1.5, 
+            targets: {
+                efficiency: 90.0,
+                maxIPOWPct: 1.5,
                 maxIPEPct: 0.8,
                 budgetCostPerHl: 250.00
             }
@@ -68,16 +68,16 @@ const StorageService = {
                 shrink_film: 0.35,
                 stretch_film: 9.00
             },
-            targets: { 
-                efficiency: 93.0, 
-                maxIPOWPct: 1.1, 
+            targets: {
+                efficiency: 93.0,
+                maxIPOWPct: 1.1,
                 maxIPEPct: 0.4,
                 budgetCostPerHl: 85.00
             }
         }
     }),
 
-    loadProducts: function() {
+    loadProducts: function () {
         const stored = localStorage.getItem(this.KEY);
         if (stored) {
             return JSON.parse(stored);
@@ -87,7 +87,7 @@ const StorageService = {
         return defaults;
     },
 
-    saveProducts: function(products) {
+    saveProducts: function (products) {
         localStorage.setItem(this.KEY, JSON.stringify(products));
     }
 };
@@ -96,10 +96,10 @@ const StorageService = {
 const state = {
     products: StorageService.loadProducts(),
     currentSku: 'LN330',
-    
+
     manualInputs: {
-        depalletizer: 0, ebi: 0, filler: 0, fbi: 0, labeler: 0, 
-        labelInspector: 0, packer1: 0, packer2: 0, palletizer: 0, wrapper: 0
+        depalletizer: 0, ebi: 0, filler: 0, fbi: 0, rot1: 0, rot2: 0, fbi1: 0, fbi2: 0,
+        packer1: 0, packer2: 0, palletizer: 0, wrapper: 0
     },
     processFlowStart: 0,
     processFlowEnd: 0,
@@ -107,9 +107,14 @@ const state = {
     runMode: 'mixed',
 
     rejects: {
-        depalletizer: 0, ebi: 0, filler: 0, fbi: 0, labeler: 0,
-        labelInspector: 0, packer1: 0, packer2: 0, palletizer: 0, wrapper: 0
-    }
+        depalletizer: 0, ebi: 0, filler: 0, fbi: 0, rot1: 0, rot2: 0, fbi1: 0, fbi2: 0,
+        packer1: 0, packer2: 0, palletizer: 0, wrapper: 0
+    },
+    withdrawals: {
+        depalletizer: 0, ebi: 0, filler: 0, fbi: 0, rot1: 0, rot2: 0, fbi1: 0, fbi2: 0,
+        packer1: 0, packer2: 0, palletizer: 0, wrapper: 0
+    },
+    lossDisplayMode: 'money' // 'money' ou 'percent'
 };
 
 // --- 2. ENGINE DE CÁLCULO ---
@@ -122,13 +127,13 @@ function calculateMetrics() {
 
     // --- CUSTOS UNITÁRIOS DOS INSUMOS ---
     const costLiquidPerUnit = product.volumeHl * c.liquidHl;
-    const costCardboardPerUnit = c.cardboard > 0 ? (c.cardboard / 6) : 0; 
+    const costCardboardPerUnit = c.cardboard > 0 ? (c.cardboard / 6) : 0;
     const costShrinkPerUnit = c.shrink_film > 0 ? (c.shrink_film / 24) : 0;
     const costStretchPerUnit = c.stretch_film > 0 ? (c.stretch_film / product.palletSize) : 0;
 
     // --- CASCADING COSTS (Valor Agregado para IPOW) ---
     // Valor acumulado que vai para o lixo se quebrar naquela etapa
-    const val_stage1 = c.base_material; 
+    const val_stage1 = c.base_material;
     const val_stage2 = val_stage1 + costLiquidPerUnit + c.closure;
     const val_stage3 = val_stage2 + c.label_set;
     const val_stage4 = val_stage3 + costCardboardPerUnit;
@@ -140,20 +145,23 @@ function calculateMetrics() {
     // --- DEFINIÇÃO DOS ESTÁGIOS E CONSUMO DE INSUMOS ---
     // 'consumptionCost': Custo unitário do que é ADICIONADO nesta etapa (para cálculo orçamentário)
     const stagesDef = [
-        { id: 'depalletizer', label: '1. Despaletizadora', type: 'process', lossValue: val_stage1, consumptionCost: c.base_material },
-        { id: 'ebi', label: '2. Inspetor Vazios', type: 'quality', lossValue: val_stage1, consumptionCost: 0 },
-        
-        { id: 'filler', label: '3. Envasadora', type: 'process', lossValue: val_stage2, rejectLabel: 'Retirada PTP', consumptionCost: costLiquidPerUnit + c.closure },
-        { id: 'fbi', label: '4. Inspetor Cheias', type: 'quality', lossValue: val_stage2, consumptionCost: 0 },
-        
-        { id: 'labeler', label: '5. Rotuladora', type: 'process', lossValue: val_stage3, consumptionCost: c.label_set },
-        { id: 'labelInspector', label: '6. Inspetor Rótulo', type: 'quality', lossValue: val_stage3, consumptionCost: 0 },
-        
-        { id: 'packer1', label: '7. Empacotadora 1', type: 'process', lossValue: val_stage4, inputUnit: 'Pacotes (6)', conversion: 6, consumptionCost: costCardboardPerUnit },
-        { id: 'packer2', label: '8. Agrupadora', type: 'process', lossValue: val_stage5, inputUnit: 'Fardos (24)', conversion: 24, consumptionCost: costShrinkPerUnit },
-        { id: 'palletizer', label: '9. Paletizadora', type: 'process', lossValue: val_stage5, inputUnit: 'Fardos (24)', conversion: 24, consumptionCost: 0 },
-        
-        { id: 'wrapper', label: '10. Envolvedora', type: 'process', lossValue: val_stage6, inputUnit: 'Paletes', conversion: product.palletSize, consumptionCost: costStretchPerUnit }
+        // ORDEM REAL DE FLUXO NA LINHA
+        { id: 'depalletizer', label: '1. Despaletizadora (DPL)', type: 'process', lossValue: val_stage1, consumptionCost: c.base_material },
+        { id: 'ebi', label: '2. Inspt Vz (EBI)', type: 'quality', lossValue: val_stage1, consumptionCost: 0 },
+
+        { id: 'filler', label: '3. Enchedora (ECH)', type: 'process', lossValue: val_stage2, rejectLabel: 'Retirada PTP', consumptionCost: costLiquidPerUnit + c.closure },
+        { id: 'fbi', label: '4. Inspt Ch (Heuft ECH)', type: 'quality', lossValue: val_stage2, consumptionCost: 0 },
+
+        { id: 'rot1', label: '5. Rotuladora 1 (ROT1)', type: 'process', lossValue: val_stage3, consumptionCost: c.label_set },
+        { id: 'fbi1', label: '6. Inspt ROT1 (Checkmat.1)', type: 'quality', lossValue: val_stage3, consumptionCost: 0 },
+
+        { id: 'rot2', label: '7. Rotuladora 2 (ROT2)', type: 'process', lossValue: val_stage3, consumptionCost: c.label_set },
+        { id: 'fbi2', label: '8. Inspt ROT2 (Checkmat.2)', type: 'quality', lossValue: val_stage3, consumptionCost: 0 },
+
+        { id: 'packer1', label: '9. Empacotadora 1 (EPC1)', type: 'process', lossValue: val_stage4, multiplier: 6, consumptionCost: costCardboardPerUnit },
+        { id: 'packer2', label: '10. Empacotadora 2 (EPC2)', type: 'process', lossValue: val_stage5, multiplier: 24, consumptionCost: costShrinkPerUnit },
+        { id: 'palletizer', label: '11. Paletizadora (PAL)', type: 'process', lossValue: val_stage5, multiplier: 24, consumptionCost: 0 },
+        { id: 'wrapper', label: '12. Envolvedora (ENV)', type: 'process', lossValue: val_stage6, multiplier: 2016, consumptionCost: costStretchPerUnit }
     ];
 
     let currentVolume = state.manualInputs['depalletizer'] || 0;
@@ -170,12 +178,14 @@ function calculateMetrics() {
 
         if (index > 0 && state.manualInputs[stage.id] !== undefined) {
             stageInput = state.manualInputs[stage.id];
+            // O valor em manualInputs já está em garrafas (multiplicado em updateStageInput)
         }
 
         if (stage.id === 'filler') fillerInputCount = stageInput;
 
         const rejectCount = state.rejects[stage.id] || 0;
-        
+        const withdrawalCount = state.withdrawals[stage.id] || 0;
+
         // IPOW: Perda = Rejeitos * Valor Agregado até o momento
         const stepLoss = rejectCount * stage.lossValue;
         totalFinancialLoss += stepLoss;
@@ -187,19 +197,20 @@ function calculateMetrics() {
             totalConsumedCost += stageInput * stage.consumptionCost;
         }
 
-        // IPE: Perda Líquida
+        // IPE: Perda Líquida (apenas rejeitos, não retiradas)
         const stageIndex = stagesDef.findIndex(s => s.id === stage.id);
         const fillerIndex = stagesDef.findIndex(s => s.id === 'filler');
         if (stageIndex >= fillerIndex) {
             totalVolumeLostHl += rejectCount * product.volumeHl;
         }
 
-        const producedOk = stageInput - rejectCount;
+        const producedOk = stageInput - rejectCount - withdrawalCount;
 
         flowData.push({
             ...stage,
             in: stageInput,
             rejects: rejectCount,
+            withdrawals: withdrawalCount,
             ok: producedOk,
             financialLoss: stepLoss,
             out: producedOk,
@@ -243,11 +254,11 @@ function calculateMetrics() {
     const pallets = finalProduction / product.palletSize;
 
     // --- CÁLCULO DE ÍNDICES E BUDGET ---
-    
+
     // 1. Custo Real por hL (Realizado)
     // Se não produziu nada, evita divisão por zero
     const actualCostPerHl = finalProductionHl > 0 ? (totalConsumedCost / finalProductionHl) : 0;
-    
+
     // 2. Desvio Financeiro (Budget Impact)
     // (Custo Real Unitário - Custo Orçado Unitário) * Volume Produzido
     const budgetCostPerHl = t.budgetCostPerHl || 0;
@@ -256,7 +267,7 @@ function calculateMetrics() {
 
     // Indices Percentuais
     const efficiency = initialVolume > 0 ? (finalProduction / initialVolume) * 100 : 0;
-    
+
     const totalProcessedVolume = measuredFlowHl > 0 ? measuredFlowHl : theoreticalLiquidNeededHl;
     const ipePct = totalProcessedVolume > 0 ? (totalVolumeLostHl / totalProcessedVolume) * 100 : 0;
 
@@ -273,9 +284,40 @@ function calculateMetrics() {
         alerts.push({ type: 'danger', title: 'Quality Breach', msg: `Envasadora (+${formatNumber(diff)}) > EBI Aprovado.`, icon: 'alert-octagon' });
     }
 
+    // Alertas de Retrabalho - Apenas para Empacotadoras (EPC1 e EPC2)
+    // Estes processos DEVERIAM receber de múltiplos inspetores (FBI1 + FBI2)
+    // ROT1/ROT2 têm entrada manual independente, não há retrabalho ali
+
+    const packers = flowData.filter(s => ['packer1', 'packer2'].includes(s.id));
+    packers.forEach(packer => {
+        if (packer.isManual) {
+            // Para EPC1/EPC2, buscar TODOS os inspetores que os alimentam
+            // Especificamente: FBI1 (saída de ROT1) + FBI2 (saída de ROT2)
+            const fbi1 = flowData.find(s => s.id === 'fbi1');
+            const fbi2 = flowData.find(s => s.id === 'fbi2');
+
+            let totalFromInspectors = 0;
+            if (fbi1) totalFromInspectors += fbi1.out;
+            if (fbi2) totalFromInspectors += fbi2.out;
+
+            if (totalFromInspectors > 0) {
+                const diff = packer.in - totalFromInspectors;
+                if (diff > 10) {
+                    const pctRework = ((diff / packer.in) * 100).toFixed(1);
+                    alerts.push({
+                        type: 'warning',
+                        title: 'Retrabalho Detectado',
+                        msg: `${packer.label} +${formatNumber(diff)} garrafas (${pctRework}% retrabalho).`,
+                        icon: 'repeat-2'
+                    });
+                }
+            }
+        }
+    });
+
     return {
         flow: flowData,
-        financial: { 
+        financial: {
             totalLoss: totalFinancialLoss,
             totalConsumed: totalConsumedCost,
             actualCostPerHl: actualCostPerHl,
@@ -296,6 +338,7 @@ function calculateMetrics() {
 
 // --- 3. HELPER FUNCTIONS ---
 const formatCurrency = (val) => '$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatPercent = (val) => val.toFixed(2) + '%';
 const formatNumber = (val) => val.toLocaleString('pt-BR');
 const formatPct = (val) => val.toFixed(2) + '%';
 const formatVolume = (valHl) => {
@@ -313,7 +356,7 @@ const toDisplayUnit = (bottles, conversionFactor) => {
 // --- 4. UI RENDER ---
 function render() {
     updateSkuSelector();
-    
+
     const metrics = calculateMetrics();
     if (!metrics) return;
 
@@ -330,7 +373,7 @@ function render() {
     effElem.innerText = formatPct(idx.efficiency);
     effElem.className = `kpi-value ${idx.efficiency >= targets.efficiency ? 'kpi-eff-high' : 'kpi-eff-low'}`;
     document.querySelector('.kpi-efficiency-subtext').innerHTML = `Meta: <strong>${targets.efficiency}%</strong>`;
-    
+
     const ipeElem = document.getElementById('kpiIPE');
     ipeElem.innerText = formatPct(idx.ipePct);
     ipeElem.style.color = idx.ipePct <= targets.maxIPEPct ? 'var(--color-green)' : 'var(--color-red)';
@@ -343,12 +386,18 @@ function render() {
 
     document.getElementById('chartTotalLoss').innerText = formatCurrency(fin.totalLoss);
 
+    // Atualizar label do botão de toggle de modo
+    const lossModeLabel = document.getElementById('lossModeLabel');
+    if (lossModeLabel) {
+        lossModeLabel.innerText = state.lossDisplayMode === 'money' ? '$' : '%';
+    }
+
     // --- CARD IMPACTO FINANCEIRO (Budget vs Real) ---
     // Recriando o HTML do card de impacto para mostrar os detalhes do orçamento
     const impactCard = document.querySelector('.impact-card');
     const varianceColor = fin.totalBudgetImpact > 0 ? 'text-red-400' : 'text-green-400';
     const varianceSign = fin.totalBudgetImpact > 0 ? '+' : '';
-    
+
     impactCard.innerHTML = `
         <h3>Orçamento vs Realizado</h3>
         <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.8rem; color:#ccc;">
@@ -397,17 +446,59 @@ function render() {
             </div>
         </div>`;
 
-    // Estágios
-    document.getElementById('stagesContainer').innerHTML = metrics.flow.map(stage => {
+    // Estágios - Renderizar em dois containers separados
+    const renderStageCard = (stage) => {
         const badgeClass = stage.type === 'process' ? 'badge-process' : 'badge-quality';
         const typeLabel = stage.type === 'process' ? 'Processo' : 'Qualidade';
         const manualClass = stage.isManual ? 'is-manual' : '';
-        const displayIn = toDisplayUnit(stage.in, stage.conversion);
-        const displayOk = toDisplayUnit(stage.ok, stage.conversion); 
-        const unitLabel = stage.inputUnit ? stage.inputUnit : 'Garrafas';
-        const unitShort = stage.inputUnit ? stage.inputUnit.split(' ')[0] : 'Un';
+
+        // Determinar unidade de entrada baseada no multiplier
+        let unitLabel = 'Garrafas';
+        let unitShort = 'Un';
+        if (stage.multiplier === 6) {
+            unitLabel = 'Pacotes (6)';
+            unitShort = 'Pac';
+        } else if (stage.multiplier === 24) {
+            unitLabel = 'Fardos (24)';
+            unitShort = 'Frd';
+        } else if (stage.multiplier === 2016) {
+            unitLabel = 'Paletes (2016)';
+            unitShort = 'Pal';
+        }
+
+        // Exibir input em unidade original (não multiplicado)
+        const displayIn = stage.multiplier ? (stage.in / stage.multiplier).toFixed(1) : toDisplayUnit(stage.in, stage.conversion);
+        const displayOk = stage.multiplier ? (stage.ok / stage.multiplier).toFixed(1) : toDisplayUnit(stage.ok, stage.conversion);
         const rejectLabel = stage.rejectLabel ? stage.rejectLabel : 'Rejeito';
-        const physicalLoss = stage.conversion ? toDisplayUnit(stage.rejects, stage.conversion) : stage.rejects;
+        const physicalLoss = stage.rejects;
+
+        // Calcular perda em porcentagem
+        const stagePercentLoss = stage.in > 0 ? (stage.rejects / stage.in) * 100 : 0;
+        const lossDisplay = state.lossDisplayMode === 'money'
+            ? `-${formatCurrency(stage.financialLoss)}`
+            : `-${formatPercent(stagePercentLoss)}`;
+
+        // Renderizar campos de rejeito e retirada para pontos específicos
+        const processesWithWithdrawal = ['filler', 'rot1', 'rot2', 'packer1', 'packer2'];
+        let rejectAndOkFields = '';
+
+        if (stage.type === 'quality') {
+            // Pontos de inspeção: mostrar rejeitos
+            rejectAndOkFields = `
+                <div class="stage-input-group"><label class="label-out" title="${rejectLabel}">${rejectLabel}</label><input type="number" value="${stage.rejects}" onchange="updateReject('${stage.id}', this.value)" class="stage-input-out"></div>
+                <div class="stage-input-group"><label class="label-ok">Produzido (Ok)</label><input type="number" value="${displayOk}" readonly class="stage-input-ok"></div>`;
+        } else if (processesWithWithdrawal.includes(stage.id)) {
+            // Pontos produtivos específicos: mostrar rejeitos E retiradas
+            const displayWithdrawal = stage.multiplier ? (stage.withdrawals / stage.multiplier).toFixed(1) : stage.withdrawals;
+            rejectAndOkFields = `
+                <div class="stage-input-group"><label class="label-out" title="${rejectLabel}">${rejectLabel}</label><input type="number" value="${stage.rejects}" onchange="updateReject('${stage.id}', this.value)" class="stage-input-out"></div>
+                <div class="stage-input-group"><label class="label-out" title="Retirada para análise">Retirada</label><input type="number" value="${displayWithdrawal}" onchange="updateWithdrawal('${stage.id}', this.value, ${stage.multiplier || 1})" class="stage-input-withdrawal"></div>
+                <div class="stage-input-group"><label class="label-ok">Produzido (Ok)</label><input type="number" value="${displayOk}" readonly class="stage-input-ok"></div>`;
+        } else {
+            // Demais processos
+            rejectAndOkFields = `
+                <div class="stage-input-group"><label class="label-ok">Produzido (Ok)</label><input type="number" value="${displayOk}" readonly class="stage-input-ok"></div>`;
+        }
 
         return `
         <div class="stage-card">
@@ -416,27 +507,36 @@ function render() {
                 <span class="stage-badge ${badgeClass}">${typeLabel}</span>
             </div>
             <div class="stage-grid">
-                <div class="stage-input-group"><label class="label-in">Entrada (${unitLabel})</label><input type="number" value="${displayIn}" onchange="updateStageInput('${stage.id}', this.value, ${stage.conversion || 1})" class="stage-input-in ${manualClass}"></div>
-                <div class="stage-input-group"><label class="label-out" title="${rejectLabel}">${rejectLabel}</label><input type="number" value="${stage.rejects}" onchange="updateReject('${stage.id}', this.value)" class="stage-input-out"></div>
-                <div class="stage-input-group"><label class="label-ok">Produzido (Ok)</label><input type="number" value="${displayOk}" readonly class="stage-input-ok"></div>
+                <div class="stage-input-group"><label class="label-in">Entrada (${unitLabel})</label><input type="number" value="${displayIn}" onchange="updateStageInput('${stage.id}', this.value, ${stage.multiplier || 1})" class="stage-input-in ${manualClass}"></div>
+                ${rejectAndOkFields}
             </div>
             <div class="stage-footer">
-                <span class="stage-footer-phy-loss">Perda: <strong>${physicalLoss} ${unitShort}</strong></span>
-                <span class="stage-loss-money">-${formatCurrency(stage.financialLoss)}</span>
+                ${stage.type === 'quality' ? `<span class="stage-footer-phy-loss">Perda: <strong>${physicalLoss} ${unitShort}</strong></span>` : ''}
+                <span class="stage-loss-money">${lossDisplay}</span>
             </div>
-        </div>
-    `}).join('');
+        </div>`;
+    };
+
+    // Renderizar todos os estágios em ordem cronológica (sem separação)
+    document.getElementById('stagesContainer').innerHTML = metrics.flow.map(renderStageCard).join('');
 
     // Gráfico
     const chartHTML = metrics.flow.map(item => {
         const pct = metrics.financial.totalLoss > 0 ? (item.financialLoss / metrics.financial.totalLoss) : 0;
         if (pct < 0.001) return '';
-        return `<div><div class="chart-bar-container"><span class="chart-bar-label">${item.label}</span><span class="chart-bar-value">${formatCurrency(item.financialLoss)}</span></div><div class="chart-bar-bg"><div class="chart-bar ${item.id === 'wrapper' ? 'chart-bar-process' : 'chart-bar-material'}" style="width: ${(pct * 100)}%"></div></div></div>`
+        const stagePercentLoss = item.in > 0 ? (item.rejects / item.in) * 100 : 0;
+        const valueDisplay = state.lossDisplayMode === 'money'
+            ? formatCurrency(item.financialLoss)
+            : formatPercent(stagePercentLoss);
+        return `<div><div class="chart-bar-container"><span class="chart-bar-label">${item.label}</span><span class="chart-bar-value">${valueDisplay}</span></div><div class="chart-bar-bg"><div class="chart-bar ${item.id === 'wrapper' ? 'chart-bar-process' : 'chart-bar-material'}" style="width: ${(pct * 100)}%"></div></div></div>`
     }).join('');
     const procPct = metrics.financial.totalLoss > 0 ? (metrics.liquid.processLossMoney / metrics.financial.totalLoss) : 0;
-    const procChart = procPct > 0.001 ? `<div><div class="chart-bar-container"><span class="chart-bar-label">0. Perda Proc. (Líquido)</span><span class="chart-bar-value">${formatCurrency(metrics.liquid.processLossMoney)}</span></div><div class="chart-bar-bg"><div class="chart-bar chart-bar-process" style="width: ${(procPct * 100)}%"></div></div></div>` : '';
+    const procValueDisplay = state.lossDisplayMode === 'money'
+        ? formatCurrency(metrics.liquid.processLossMoney)
+        : formatPercent(procPct * 100);
+    const procChart = procPct > 0.001 ? `<div><div class="chart-bar-container"><span class="chart-bar-label">0. Perda Proc. (Líquido)</span><span class="chart-bar-value">${procValueDisplay}</span></div><div class="chart-bar-bg"><div class="chart-bar chart-bar-process" style="width: ${(procPct * 100)}%"></div></div></div>` : '';
     document.getElementById('lossBreakdown').innerHTML = procChart + chartHTML;
-    
+
     document.getElementById('skuDetails').innerHTML = `
         <li><span>SKU</span> <strong>${product.label}</strong></li>
         <li><span>Marca</span> <strong>${product.brand}</strong></li>
@@ -457,7 +557,7 @@ function getTypeLabel(type) {
 function updateSkuSelector() {
     const selector = document.getElementById('skuSelect');
     if (selector.options.length !== Object.keys(state.products).length) {
-        selector.innerHTML = Object.values(state.products).map(p => 
+        selector.innerHTML = Object.values(state.products).map(p =>
             `<option value="${p.id}" ${p.id === state.currentSku ? 'selected' : ''}>${p.label} - ${p.brand}</option>`
         ).join('');
     }
@@ -466,21 +566,80 @@ function updateSkuSelector() {
 
 document.getElementById('skuSelect').onchange = (e) => {
     state.currentSku = e.target.value;
-    state.processFlowEnd = 0; 
+    state.processFlowEnd = 0;
     render();
 };
 
 window.toggleUnit = (u) => { state.processUnit = u; render(); };
 window.updateStageInput = (id, val, conversion) => { const num = parseFloat(val); if (!isNaN(num)) { state.manualInputs[id] = Math.round(num * conversion); render(); } };
 window.updateReject = (id, val) => { state.rejects[id] = Math.max(0, parseInt(val) || 0); render(); };
-window.updateProcessStart = (val) => { const n = parseFloat(val); if (!isNaN(n)) { state.processFlowStart = state.processUnit === 'm3' ? n * 10 : n; if(!state.processFlowEnd) state.processFlowEnd = state.processFlowStart; render(); }};
-window.updateProcessEnd = (val) => { const n = parseFloat(val); if (!isNaN(n)) { state.processFlowEnd = state.processUnit === 'm3' ? n * 10 : n; render(); }};
+window.updateWithdrawal = (id, val, conversion) => { const num = parseFloat(val); if (!isNaN(num)) { state.withdrawals[id] = Math.round(num * conversion); render(); } };
+window.updateProcessStart = (val) => { const n = parseFloat(val); if (!isNaN(n)) { state.processFlowStart = state.processUnit === 'm3' ? n * 10 : n; if (!state.processFlowEnd) state.processFlowEnd = state.processFlowStart; render(); } };
+window.updateProcessEnd = (val) => { const n = parseFloat(val); if (!isNaN(n)) { state.processFlowEnd = state.processUnit === 'm3' ? n * 10 : n; render(); } };
 
 window.resetInputs = () => {
     Object.keys(state.manualInputs).forEach(k => state.manualInputs[k] = 0);
     Object.keys(state.rejects).forEach(k => state.rejects[k] = 0);
     state.processFlowStart = 0; state.processFlowEnd = 0;
     render();
+};
+
+window.toggleLossMode = () => {
+    state.lossDisplayMode = state.lossDisplayMode === 'money' ? 'percent' : 'money';
+    render();
+};
+
+window.toggleManualOnly = (checked) => {
+    // Função para filtrar apenas inputs manuais (se necessário)
+    render();
+};
+
+// --- DADOS DE DEMONSTRAÇÃO ---
+const DEMO_DATA = {
+    manualInputs: {
+        depalletizer: 729740,      // DPL = 729740 garrafas
+        ebi: 729800,               // EBI entrada = 729800 garrafas (+60 reprocessadas)
+        filler: 728505,            // ECH = 728505 garrafas
+        fbi: 728096,               // Heuft ECH entrada = 728096 garrafas
+        rot1: 363600,              // ROT1 = 363600 garrafas
+        rot2: 363600,              // ROT2 = 363600 garrafas
+        fbi1: 363600,              // Checkmat.1 entrada = 363600 garrafas
+        fbi2: 363600,              // Checkmat.2 entrada = 363600 garrafas
+        packer1: 724000,           // EPC1 = 724000 garrafas (Checkmat.1: 362200 + Checkmat.2: 361600 = 723800 esperado; +200 reprocessados)
+        packer2: 723984,           // EPC2 = 723984 garrafas (-16 garrafas perdidas em transporte)
+        palletizer: 723984,        // PAL = 723984 garrafas (mantém de EPC2)
+        wrapper: 723744            // ENV = 723744 garrafas (359 paletes)
+    },
+    rejects: {
+        depalletizer: 0,        // DPL não tem rejeitos (apenas despaletização)
+        ebi: 1300,              // EBI: Expl = 1300 (rejeitos da inspeção)
+        filler: 0,              // ECH não tem rejeitos diretos
+        fbi: 830,               // Heuft ECH: Expl = 830 (rejeitos da inspeção)
+        rot1: 0,                // ROT1 não tem rejeitos diretos
+        rot2: 0,                // ROT2 não tem rejeitos diretos
+        fbi1: 1400,             // Checkmat.1: Expl = 1400 (rejeitos da inspeção)
+        fbi2: 2000,             // Checkmat.2: Expl = 2000 (rejeitos da inspeção)
+        packer1: 0,             // EPC1 não tem rejeitos diretos
+        packer2: 6,             // EPC2: -6 pacotes de transporte
+        palletizer: 0,          // PAL não tem rejeitos diretos
+        wrapper: 0              // ENV não tem rejeitos diretos
+    },
+    processFlowStart: 2404.0665,  // ECH = 2404,0665 hL
+    processFlowEnd: 2388.3552,    // FINAL DE LINHA = 2388,3552 hL
+};
+
+window.applyDemo = () => {
+    try {
+        Object.assign(state.manualInputs, DEMO_DATA.manualInputs);
+        Object.assign(state.rejects, DEMO_DATA.rejects);
+        state.processFlowStart = DEMO_DATA.processFlowStart;
+        state.processFlowEnd = DEMO_DATA.processFlowEnd;
+        state.runMode = 'manual';
+        render();
+    } catch (error) {
+        console.error('Erro ao aplicar dados de demonstração:', error);
+        alert('Erro ao aplicar demonstração. Verifique o console.');
+    }
 };
 
 // --- MODAL DE SETTINGS ---
@@ -498,7 +657,7 @@ function loadProductToModal(productId) {
     const product = state.products[productId];
     // Migration check
     if (!product.targets.budgetCostPerHl) {
-        product.targets.budgetCostPerHl = 100.00; 
+        product.targets.budgetCostPerHl = 100.00;
     }
     tempProduct = JSON.parse(JSON.stringify(product));
     renderSettingsModal();
@@ -520,7 +679,7 @@ function createNewProduct() {
 
 function renderSettingsModal() {
     const container = document.getElementById('costInputsContainer');
-    
+
     let html = `
         <div style="grid-column: span 2; display:flex; gap: 10px; margin-bottom: 20px; align-items:center;">
             <label class="text-xs font-bold text-gray-500 uppercase">Editar:</label>

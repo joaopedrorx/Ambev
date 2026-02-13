@@ -1,0 +1,45 @@
+Dados DEMO:
+
+DPL = 729740 (214 Paletes com 3.410 garrafas)
+Inspt GRF Vz: 
+- Proc: 729800
+- Prod: 728500
+- Expl: 1300
+
+ECH = 728505 = 2404,0665hL
+(simulado 5 garrafas a mais para demo de quebra de qualidade) (Retirado da producao para analises de qualidade em 24h, aproximadamente 312 para PTP e 96 para laboratorio nos 3 turnos)
+Inspt GRF Ch1:
+- Proc: 728096
+- Prod: 727266
+- Expl: 830
+
+(-66 garrafas perdidas entre Saída ECH e Entrada ROTs)
+
+ROT1= 363600 
+Inspt. GRF Ch2.1:
+- Proc: 363600
+- Prod: 362200
+- Expl: 1400
+
+ROT2= 363.600
+Inspt. GRF Ch2.2:
+- Proc: 363600
+- Prod: 361600
+- Expl: 2000
+
+SAIDA ROTULADOS = 724000 = 2389,20hL (723800 +200 garrafas de "retrabalho")
+
+EPC1 = 120666 (Quantidades x6 = num de garrafas)
+EPC2 = 30166 (Quantidades x24 = num de garrafas)
+PAL= 30160 Quantidades x24 (-6 pacotes de 24)
+ENV= 359 (,047619 fração sobrando referente a 4 pacotes de 24) Quantidade Paletes Envolvidos (1Palete = 2016 Garrafas)
+
+FINAL DE LINHA 359 paletes completos = 723744 garrafas = 120624 (x6) = 30156 (x24) = 2388,3552 hL 
+(2404,0665hL - 2388,3552hL = 15,7113hL de Produto Perdido, aumentando IPE )
+
+1/84 = 0,0119047619 = cada parte da fracao de um palete que equivale a 1 fardo.
+Regra de 3 da fração paletizada
+1 = 2016 garrafas
+0,047619 = x 
+x= 95.99garrafas /24 = aprox. 4 pacotes sobrando
+

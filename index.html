@@ -33,7 +33,7 @@
                     <label>SKU Ativo</label>
                     <select id="skuSelect" class="sku-select">
                         <option value="LN330">Longneck 330ml</option>
-                        <option value="LN275">Longneck 275ml</option>
+                        <!-- Adicione mais opções conforme necessário -->
                     </select>
                 </div>
 
@@ -122,8 +122,8 @@
             <!-- MAIN GRID -->
             <div class="main-grid">
 
-                <!-- COLUNA 1: SIMULAÇÃO DA LINHA (INPUTS DETALHADOS) -->
-                <div class="input-column lg-col-span-1">
+                <!-- COLUNA 1: PONTOS PRODUTIVOS + PONTOS DE INSPEÇÃO -->
+                <div class="input-column">
                     <h2 class="input-column-header">
                         <span class="input-column-title"><i data-lucide="sliders"></i> Dados de Entrada</span>
                         <div class="input-column-actions">
@@ -137,30 +137,34 @@
                     </h2>
 
                     <div class="input-container custom-scrollbar">
-                        <div class="flow-line"></div> <!-- Linha vertical visual -->
-
                         <!-- Container para o Input de Líquido -->
                         <div id="liquidInputContainer" class="relative z-10 mb-6">
                             <!-- Injetado via JS -->
                         </div>
 
-                        <!-- Template Dinâmico via JS será injetado aqui -->
-                        <div id="stagesContainer" class="space-y-4 relative z-10 pb-4">
-                            <!-- Stages gerados via JS -->
+                        <!-- Template Dinâmico: Todos os Estágios em Ordem -->
+                        <div id="stagesContainer" class="space-y-3 relative z-10 pb-4">
+                            <!-- Stages gerados via JS (ordem cronológica) -->
                         </div>
                     </div>
                 </div>
 
-                <!-- COLUNA 2 e 3: ANÁLISE -->
-                <div class="analysis-column lg-col-span-2">
+                <!-- COLUNA 2: ANÁLISE (DETALHAMENTO IPOW) -->
+                <div class="analysis-column">
 
                     <!-- Detalhamento de Perdas (Bar Chart Visual) -->
                     <div class="loss-breakdown-card">
                         <div class="loss-breakdown-header">
                             <h2 class="loss-breakdown-title">Detalhamento IPOW (Perdas)</h2>
-                            <div class="loss-breakdown-total">
-                                <span class="total-label">Valor total perdido</span>
-                                <div class="total-value" id="chartTotalLoss">$ 0.00</div>
+                            <div class="loss-breakdown-controls">
+                                <button class="loss-mode-toggle" onclick="toggleLossMode()"
+                                    title="Alternar entre $ e %">
+                                    <span id="lossModeLabel">$</span>
+                                </button>
+                                <div class="loss-breakdown-total">
+                                    <span class="total-label">Valor total perdido</span>
+                                    <div class="total-value" id="chartTotalLoss">$ 0.00</div>
+                                </div>
                             </div>
                         </div>
 
