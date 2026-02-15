@@ -146,22 +146,22 @@ function calculateMetrics() {
     // 'consumptionCost': Custo unitário do que é ADICIONADO nesta etapa (para cálculo orçamentário)
     const stagesDef = [
         // ORDEM REAL DE FLUXO NA LINHA
-        { id: 'depalletizer', label: '1. Despaletizadora (DPL)', type: 'process', lossValue: val_stage1, consumptionCost: c.base_material },
-        { id: 'ebi', label: '2. Inspt Vz (EBI)', type: 'quality', lossValue: val_stage1, consumptionCost: 0 },
+        { id: 'depalletizer', label: 'Despaletizadora (DPL)', type: 'process', lossValue: val_stage1, consumptionCost: c.base_material },
+        { id: 'ebi', label: 'Inspt Vz (EBI)', type: 'quality', lossValue: val_stage1, consumptionCost: 0 },
 
-        { id: 'filler', label: '3. Enchedora (ECH)', type: 'process', lossValue: val_stage2, rejectLabel: 'Retirada PTP', consumptionCost: costLiquidPerUnit + c.closure },
-        { id: 'fbi', label: '4. Inspt Ch (Heuft ECH)', type: 'quality', lossValue: val_stage2, consumptionCost: 0 },
+        { id: 'filler', label: 'Enchedora (ECH)', type: 'process', lossValue: val_stage2, rejectLabel: 'Retirada PTP', consumptionCost: costLiquidPerUnit + c.closure },
+        { id: 'fbi', label: 'Inspt Ch (Heuft ECH)', type: 'quality', lossValue: val_stage2, consumptionCost: 0 },
 
-        { id: 'rot1', label: '5. Rotuladora 1 (ROT1)', type: 'process', lossValue: val_stage3, consumptionCost: c.label_set },
-        { id: 'fbi1', label: '6. Inspt ROT1 (Checkmat.1)', type: 'quality', lossValue: val_stage3, consumptionCost: 0 },
+        { id: 'rot1', label: 'Rotuladora 1 (ROT1)', type: 'process', lossValue: val_stage3, consumptionCost: c.label_set },
+        { id: 'fbi1', label: 'Inspt ROT1 (Checkmat.1)', type: 'quality', lossValue: val_stage3, consumptionCost: 0 },
 
-        { id: 'rot2', label: '7. Rotuladora 2 (ROT2)', type: 'process', lossValue: val_stage3, consumptionCost: c.label_set },
-        { id: 'fbi2', label: '8. Inspt ROT2 (Checkmat.2)', type: 'quality', lossValue: val_stage3, consumptionCost: 0 },
+        { id: 'rot2', label: 'Rotuladora 2 (ROT2)', type: 'process', lossValue: val_stage3, consumptionCost: c.label_set },
+        { id: 'fbi2', label: 'Inspt ROT2 (Checkmat.2)', type: 'quality', lossValue: val_stage3, consumptionCost: 0 },
 
-        { id: 'packer1', label: '9. Empacotadora 1 (EPC1)', type: 'process', lossValue: val_stage4, multiplier: 6, consumptionCost: costCardboardPerUnit },
-        { id: 'packer2', label: '10. Empacotadora 2 (EPC2)', type: 'process', lossValue: val_stage5, multiplier: 24, consumptionCost: costShrinkPerUnit },
-        { id: 'palletizer', label: '11. Paletizadora (PAL)', type: 'process', lossValue: val_stage5, multiplier: 24, consumptionCost: 0 },
-        { id: 'wrapper', label: '12. Envolvedora (ENV)', type: 'process', lossValue: val_stage6, multiplier: 2016, consumptionCost: costStretchPerUnit }
+        { id: 'packer1', label: 'Empacotadora 1 (EPC1)', type: 'process', lossValue: val_stage4, multiplier: 6, consumptionCost: costCardboardPerUnit },
+        { id: 'packer2', label: 'Empacotadora 2 (EPC2)', type: 'process', lossValue: val_stage5, multiplier: 24, consumptionCost: costShrinkPerUnit },
+        { id: 'palletizer', label: 'Paletizadora (PAL)', type: 'process', lossValue: val_stage5, multiplier: 24, consumptionCost: 0 },
+        { id: 'wrapper', label: 'Envolvedora (ENV)', type: 'process', lossValue: val_stage6, multiplier: 2016, consumptionCost: costStretchPerUnit }
     ];
 
     let currentVolume = state.manualInputs['depalletizer'] || 0;
@@ -761,7 +761,7 @@ document.getElementById('btnSaveSettings').onclick = () => {
     alert('Configurações salvas com sucesso!');
 };
 
-// --- LEGENDA (Tema) ---
+// --- (Troca de Tema) ---
 function toggleTheme() {
     const html = document.documentElement;
     const isDark = html.classList.contains('dark');
